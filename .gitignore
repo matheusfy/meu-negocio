@@ -1,0 +1,79 @@
+# Gradle
+.gradle/
+**/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+!gradle/wrapper/gradle-wrapper.jar
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# Maven (caso alguma submódulo passe a usar Maven)
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Java
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.war
+*.ear
+HELP.md
+
+# Logs
+*.log
+logs/
+
+# Variáveis de ambiente / segredos
+.env
+.env.*
+application-local.yml
+application-local.yaml
+application-local.properties
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# Eclipse / STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Docker
+docker-compose.override.yml
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Temporários
+*.tmp
+*.temp
