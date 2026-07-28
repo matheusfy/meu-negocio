@@ -4,25 +4,25 @@
 
 - **`main`** — produção. Só recebe merge de `develop`, sempre via Pull Request.
 - **`develop`** — integração. É a partir dela que, futuramente, será gerada a versão publicada em ambiente de teste. Só recebe merge das branches de task, sempre via Pull Request.
-- **`feature/<descrição-curta>`** — uma branch por task, criada a partir de `develop`. Exemplo: `feature/cadastro-pedido`.
+- **`issue-N-DescricaoTarefa`** — uma branch por task, criada a partir de `develop`, vinculada ao número da issue no GitHub. `N` é o número da issue e `DescricaoTarefa` é PascalCase, sem espaços/acentos/hífens. Exemplo: `issue-12-CadastroPedido`.
 
 ```
 main
  └── develop
-      └── feature/cadastro-pedido
-      └── feature/consulta-pedido-por-cliente
+      └── issue-12-CadastroPedido
+      └── issue-13-ConsultaPedidoPorCliente
       └── ...
 ```
 
 ## Fluxo de trabalho
 
-1. Atualize sua `develop` local e crie a branch da task a partir dela:
+1. Atualize sua `develop` local e crie a branch da task a partir dela, usando o nome da issue:
    ```bash
    git checkout develop
    git pull
-   git checkout -b feature/nome-da-task
+   git checkout -b issue-12-CadastroPedido
    ```
-2. Rode `./gradlew build` uma vez (dentro de `sistema-pedidos/`) — isso também configura automaticamente o hook local de validação de mensagem de commit (veja abaixo).
+2. Rode `./gradlew build` uma vez (dentro de `sistema-pedidos/`) — isso também configura automaticamente os hooks locais de validação de mensagem de commit e de nome de branch (veja abaixo).
 3. Desenvolva e faça commits pequenos e descritivos, seguindo o padrão de mensagem de commit (veja abaixo).
 4. Suba a branch e abra um Pull Request para `develop`.
 5. O pipeline de CI (`.github/workflows/ci.yml`) roda automaticamente: validação das mensagens de commit, build, testes e checkstyle.
@@ -47,13 +47,29 @@ A regra é validada em dois lugares:
 - **Localmente**, via git hook (`.githooks/commit-msg`) — instalado automaticamente ao rodar `./gradlew build`. Para instalar manualmente sem buildar: `git config core.hooksPath .githooks`.
 - **No CI**, via job `Commit Lint` em toda Pull Request — garante o padrão mesmo se alguém não tiver o hook local configurado.
 
+## Padrão de nome de branch
+
+Formato: `issue-N-DescricaoTarefa`, onde `N` é o número da issue no GitHub e `DescricaoTarefa` está em PascalCase (sem espaços, acentos ou hífens extras).
+
+Exemplos:
+```
+issue-12-CadastroPedido
+issue-13-ConsultaPedidoPorCliente
+```
+
+`develop` e `main` são as únicas exceções ao padrão (não precisam seguir esse formato).
+
+Também validado em dois lugares:
+- **Localmente**, via git hook (`.githooks/pre-push`) — instalado junto com o hook de commit, mesmo `./gradlew build`.
+- **No CI**, via job `Branch Name Lint` em toda Pull Request, validando o nome da branch de origem.
+
 ## Configurando o gate no GitHub (feito uma vez, manualmente)
 
 Isso precisa ser feito direto nas configurações do repositório (Settings → Branches → Branch protection rules), pois exige permissão de admin que a automação não tem. **Já configurado** para `develop` e `main`, documentado aqui para referência:
 
 1. **Regra para `develop`**
    - Require a pull request before merging
-   - Require status checks to pass before merging → `Commit Lint`, `Build & Testes` e `Checkstyle`
+   - Require status checks to pass before merging → `Commit Lint`, `Branch Name Lint`, `Build & Testes` e `Checkstyle`
    - Require branches to be up to date before merging
 
 2. **Regra para `main`**
