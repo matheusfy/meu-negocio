@@ -50,6 +50,51 @@ jobs:
             exit 1
           fi
 
+  branch-name-lint:
+    name: Branch Name Lint
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref != 'develop'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: "Validar nome da branch (padrão issue-N-DescricaoTarefa)"
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -e
+          # Exceção temporária: branches criadas antes do padrão entrar em vigor.
+          # Não crie branches novas aqui — use issue-N-DescricaoTarefa.
+          legacy_allowlist='^(issu2-test)$'
+          pattern='^issue-[0-9]+-[A-Za-z][A-Za-z0-9]*$'
+          if echo "$HEAD_REF" | grep -Eq "$legacy_allowlist"; then
+            echo "Branch \"$HEAD_REF\" na allowlist legada, ignorando."
+            exit 0
+          fi
+          if ! echo "$HEAD_REF" | grep -Eq "$pattern"; then
+            echo "::error::Branch \"$HEAD_REF\" fora do padrão."
+            echo "Padrão esperado: issue-N-DescricaoTarefa"
+            echo "Exemplo: issue-12-CadastroPedido"
+            exit 1
+          fi
+
+  guard-main-source:
+    name: Guard Merge To Main
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: "Bloquear merge na main que não venha da develop"
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "::error::PR para main deve vir de develop (branch atual: $HEAD_REF)."
+            exit 1
+          fi
+
   build-and-test:
     name: Build & Testes
     runs-on: ubuntu-latest
