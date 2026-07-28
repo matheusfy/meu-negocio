@@ -54,6 +54,9 @@ jobs:
     name: Branch Name Lint
     if: github.event_name == 'pull_request' && github.event.pull_request.head.ref != 'develop'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: "Validar nome da branch (padrão issue-N-DescricaoTarefa)"
         env:
@@ -79,6 +82,9 @@ jobs:
     name: Guard Merge To Main
     if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: "Bloquear merge na main que não venha da develop"
         env:
