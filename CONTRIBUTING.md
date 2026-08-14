@@ -22,7 +22,7 @@ main
    git pull
    git checkout -b issue-12-CadastroPedido
    ```
-2. Rode `./gradlew build` uma vez (dentro de `sistema-pedidos/`) — isso também configura automaticamente os hooks locais de validação de mensagem de commit e de nome de branch (veja abaixo).
+2. Rode `./gradlew build` uma vez (dentro de `meu-negocio/`) — isso também configura automaticamente os hooks locais de validação de mensagem de commit e de nome de branch (veja abaixo).
 3. Desenvolva e faça commits pequenos e descritivos, seguindo o padrão de mensagem de commit (veja abaixo).
 4. Suba a branch e abra um Pull Request para `develop`.
 5. O pipeline de CI (`.github/workflows/ci.yml`) roda automaticamente: validação das mensagens de commit, build, testes e checkstyle.

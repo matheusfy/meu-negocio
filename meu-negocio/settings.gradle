@@ -4,4 +4,4 @@ pluginManagement {
 		gradlePluginPortal()
 	}
 }
-rootProject.name = 'sistema-pedidos'
+rootProject.name = 'meu-negocio'

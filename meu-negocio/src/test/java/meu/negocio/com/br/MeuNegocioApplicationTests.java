@@ -1,10 +1,10 @@
-package sistema.pedidos.com.br;
+package meu.negocio.com.br;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class SistemaPedidosApplicationTests {
+class MeuNegocioApplicationTests {
 
 	@Test
 	void contextLoads() {

@@ -1,13 +1,13 @@
-package sistema.pedidos.com.br;
+package meu.negocio.com.br;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class SistemaPedidosApplication {
+public class MeuNegocioApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(SistemaPedidosApplication.class, args);
+		SpringApplication.run(MeuNegocioApplication.class, args);
 	}
 
 }
