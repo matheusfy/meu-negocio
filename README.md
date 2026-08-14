@@ -1,95 +1,113 @@
-# Sistema de Gestão de Pedidos
+# MeuNegocio
 
-Projeto de estudos que simula, do zero, um sistema de gestão de pedidos em Java — cobrindo desde o modelo de domínio até deploy em nuvem com observabilidade e infraestrutura como código. O objetivo é praticar arquitetura de software, boas práticas de backend e o ciclo completo de DevOps em um único projeto guiado por fases incrementais.
+Sistema de gestão e rentabilidade para pequenos negócios. Nasce para resolver um problema real — controlar produtos, compras, estoque, vendas e financeiro das vendas de perfume da família — e é desenhado para responder perguntas que uma planilha não responde bem:
+
+- Quanto estou faturando? Quanto estou gastando? Quanto estou lucrando de verdade?
+- Qual a margem de lucro de cada produto? Quais produtos são mais lucrativos?
+- Quanto preciso vender para cobrir minhas despesas?
+- Quais produtos precisam ser repostos?
+
+O plano detalhado (módulos, regras de negócio, exemplos de cálculo, roadmap completo) está em [`planejamento_sistema_gestao_rentabilidade.md`](planejamento_sistema_gestao_rentabilidade.md). Este README é o resumo prático: o que o sistema faz, como rodar e em que pé está.
 
 ## O que o sistema faz
 
-Gerencia o ciclo de vida de pedidos de um cliente: criação, consulta, listagem por cliente, cancelamento e mudança de status. Ao longo das fases, o sistema evolui para incluir autenticação e autorização, reserva de estoque orientada a eventos, cache de consultas, observabilidade (métricas, dashboards, alertas) e provisionamento automatizado em nuvem.
+Centraliza as informações do negócio e transforma dados de compra/venda em decisão, seguindo o fluxo:
+
+```text
+Produto → Compra → Estoque → Venda → Resultado Financeiro
+```
+
+- **Produtos** — cadastro, com custo tratado como histórico (um produto pode ter sido comprado por preços diferentes ao longo do tempo), não como valor fixo.
+- **Compras** — registra cada aquisição (fornecedor, quantidade, frete, outras despesas) e calcula o custo real de colocar o produto no estoque.
+- **Estoque** — movimentações de entrada/saída (compra, venda, ajuste, devolução, perda) e indicadores (estoque atual, mínimo, valor total).
+- **Vendas** — cada venda usa o custo do produto **no momento em que foi vendido**, não o custo atual — histórico financeiro nunca é reescrito.
+- **Custos e despesas** — separa custo variável (ligado ao produto: embalagem, taxa de cartão, frete da venda) de despesa fixa (aluguel, internet, sistemas).
+- **Financeiro** — receitas e despesas consolidadas em lucro bruto e lucro líquido.
+- **Indicadores de rentabilidade** — margem, markup e rentabilidade por produto e do negócio como um todo; ponto de equilíbrio (quanto preciso faturar pra cobrir as despesas).
+- **Dashboard** — visão resumida: faturamento, lucro, produtos mais vendidos/lucrativos, estoque baixo, evolução no tempo.
+
+## Princípios do projeto
+
+1. Começar simples — resolver primeiro uma necessidade real, sem funcionalidade desnecessária no MVP.
+2. Nunca sobrescrever histórico financeiro/estoque importante.
+3. Separar custo, receita e despesa com clareza.
+4. Calcular lucro com base no custo correto da mercadoria no momento da venda.
+5. Projetar o domínio pra poder evoluir além do segmento de perfumes, se fizer sentido.
+6. Priorizar usabilidade pra quem não tem conhecimento técnico ou contábil.
 
 ## Tecnologias utilizadas
 
-**Linguagem e core**
-- Java 21 (com uso de virtual threads em pontos que se beneficiam de paralelismo)
-- Spring Boot (Web, Security, Data JPA, Validation)
-- Maven
+**Backend**
+- Java 21
+- Spring Boot (Web, Data JPA, Validation, Session JDBC)
+- Gradle
 
-**Persistência e cache**
+**Persistência**
 - PostgreSQL (dados transacionais)
-- H2 (banco em memória para testes rápidos)
-- Redis (cache de consultas e/ou sessão)
-
-**Mensageria**
-- RabbitMQ ou Kafka (eventos como `PedidoCriado` e `PedidoRejeitado`)
-
-**Segurança**
-- Spring Security, hash de senha com BCrypt, JWT (ou sessão stateful via Redis)
+- H2 (testes)
+- Flyway (migrations)
 
 **Testes**
-- JUnit 5, Mockito, Testcontainers, RestAssured/MockMvc, Jacoco (cobertura), Cucumber (opcional, BDD)
+- JUnit 5, Spring Boot Test
 
-**Observabilidade**
-- Spring Boot Actuator, Micrometer, Prometheus, Grafana
-
-**Infraestrutura e deploy**
-- Docker (build multi-stage) e Docker Compose
-- GitHub Actions (CI/CD)
-- Terraform (VPC, RDS, ElastiCache, ECS Fargate/EC2 + ALB, Amazon MQ/MSK)
-- AWS
+**Frontend e infraestrutura** (fora do MVP inicial — decididos depois: React/Angular/Vue pro frontend; Docker, CI/CD, cloud e monitoramento já existem no repositório para o próprio ciclo de desenvolvimento, mas não são o foco do MVP).
 
 ## Arquitetura
 
-O projeto segue uma organização em camadas (domínio, aplicação, infraestrutura e API REST), com entidades e agregados bem definidos (ex: `Pedido` como aggregate root, `ItemPedido`, `Endereco` como value object, `StatusPedido` como enum). Regras de negócio são implementadas com uso de Streams e DTOs via `record`, com validação de entrada e tratamento de exceções centralizado.
+Simples por enquanto, priorizando facilidade de evolução:
+
+```text
+Frontend (a definir)
+    ↓
+API REST
+    ↓
+Backend (Spring Boot)
+    ↓
+PostgreSQL
+```
 
 ## Como executar o projeto
 
 ### Pré-requisitos
 
 - Java 21+
-- Maven 3.9+
-- Docker e Docker Compose
-
-### Subindo as dependências (Postgres, Redis, RabbitMQ)
-
-```bash
-docker-compose up -d
-```
+- Docker e Docker Compose (o `spring-boot-docker-compose` sobe o Postgres automaticamente)
 
 ### Executando a aplicação
 
 ```bash
-./mvnw spring-boot:run
+cd meu-negocio
+./gradlew bootRun
 ```
 
 ### Rodando os testes
 
 ```bash
-./mvnw test
+cd meu-negocio
+./gradlew test
 ```
 
-### Build e execução via Docker
+### Build completo (build + testes + checkstyle)
 
 ```bash
-docker build -t sistema-gestao-pedidos .
-docker run -p 8080:8080 sistema-gestao-pedidos
+cd meu-negocio
+./gradlew build
 ```
 
-## Roadmap do projeto
+Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) para o fluxo de branches, padrão de commit e de nome de branch.
 
-O desenvolvimento é guiado por fases incrementais, cada uma rastreada como issues neste repositório:
+## Roadmap do MVP
 
 | Fase | Foco |
 |------|------|
-| 1 | Modelagem de domínio (entidades, value objects, agregados) |
-| 2 | API REST, JPA, regras de negócio, DTOs, validação e testes unitários |
-| 3 | Autenticação, autorização, cache com Redis e multi-datasource |
-| 4 | Mensageria assíncrona (eventos de pedido, estoque e notificação) e concorrência |
-| 5 | Testes de integração, funcionais e cobertura de código |
-| 6 | Observabilidade: métricas, Prometheus e dashboards Grafana |
-| 7 | Containerização com Docker e Docker Compose |
-| 8 | Pipeline de CI/CD (GitHub Actions) |
-| 9 | Infraestrutura como código com Terraform na AWS |
-| 10 | Deploy em nuvem, validação de observabilidade e runbook operacional |
+| 1 | Cadastros — produtos, categorias, fornecedores, clientes |
+| 2 | Estoque — entrada/saída, ajustes, estoque mínimo, cálculo de custo |
+| 3 | Vendas — itens, desconto, forma de pagamento, baixa automática de estoque, cálculo de lucro |
+| 4 | Financeiro — receitas, despesas, custos, taxas, resultado financeiro |
+| 5 | Dashboard — faturamento, lucro, margem, ticket médio, produtos mais lucrativos, ponto de equilíbrio |
+
+Roadmap completo e exemplos de cálculo em [`planejamento_sistema_gestao_rentabilidade.md`](planejamento_sistema_gestao_rentabilidade.md).
 
 ## Status
 
-Projeto em desenvolvimento ativo, seguindo o roadmap acima fase a fase.
+Projeto em desenvolvimento ativo. Configuração inicial (Git, CI, padrões de commit/branch) concluída — próximo passo é definir o modelo de domínio (entidades, relacionamentos, regras de custo/venda) e iniciar a Fase 1.
