@@ -15,6 +15,10 @@
 - [ ] Preencher `application.properties` com config básica de JPA/Flyway (ex: `spring.jpa.hibernate.ddl-auto=validate`)
 - [ ] Corrigir o README: hoje cita Maven, mas o projeto usa Gradle (`./gradlew`)
 
-## Roadmap (fases do projeto, ver README)
-- [ ] Fase 1: modelagem de domínio (`Pedido`, `ItemPedido`, `Endereco`, `StatusPedido`)
-- [ ] Fase 2: API REST, JPA, DTOs, validação, testes unitários
+## Roadmap (ver `planejamento_sistema_viabilidade_decantes.md`)
+Fase 1 do `planejamento_sistema_gestao_rentabilidade.md` foi refinada para o simulador de viabilidade de decantes. `Produto` (com `volumeMl`) já está implementado; falta:
+- [ ] Fase A: `CustoInsumo` (catálogo de insumos — frasco, seringa, etiqueta)
+- [ ] Fase B: `Decante` (configuração de venda por tamanho, ligado a um `Produto`)
+- [ ] Fase C: `AnaliseViabilidadeService` (cálculo de custo por ml, lucro, margem, comparação entre tamanhos)
+- [ ] Fase D: testes unitários (`AnaliseViabilidadeService` primeiro, é o coração do sistema)
+- [ ] Fase E (backlog): perda de produção, impostos/taxas/frete/comissão, estoque de insumos, histórico de venda real vs. estimado
