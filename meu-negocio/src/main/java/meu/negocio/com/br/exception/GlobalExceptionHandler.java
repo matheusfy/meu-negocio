@@ -57,7 +57,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
     }
 
-    @ExceptionHandler({ProdutoNaoEncontradoException.class, CustoInsumoNaoEncontradoException.class})
+    @ExceptionHandler({
+        ProdutoNaoEncontradoException.class,
+        CustoInsumoNaoEncontradoException.class,
+        DecanteNaoEncontradoException.class
+    })
     public ResponseEntity<ErroResposta> handleRecursoNaoEncontrado(RuntimeException ex, HttpServletRequest request) {
         ErroResposta erro = new ErroResposta(
             LocalDateTime.now(),
