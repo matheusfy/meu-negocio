@@ -17,7 +17,7 @@
 
 ## Roadmap (ver `planejamento_sistema_viabilidade_decantes.md`)
 Fase 1 do `planejamento_sistema_gestao_rentabilidade.md` foi refinada para o simulador de viabilidade de decantes. `Produto` (com `volumeMl`) já está implementado; falta:
-- [ ] Fase A: `CustoInsumo` (catálogo de insumos — frasco, seringa, etiqueta)
+- [x] Fase A: `CustoInsumo` (catálogo de insumos — frasco, seringa, etiqueta) — CRUD REST em `/api/v1/insumos`
 - [ ] Fase B: `Decante` (configuração de venda por tamanho, ligado a um `Produto`)
 - [ ] Fase C: `AnaliseViabilidadeService` (cálculo de custo por ml, lucro, margem, comparação entre tamanhos)
 - [ ] Fase D: testes unitários (`AnaliseViabilidadeService` primeiro, é o coração do sistema)
