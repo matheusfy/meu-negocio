@@ -7,10 +7,12 @@ import java.math.BigDecimal;
  *
  * <p>Valores unitários referem-se a um único decante; valores de lote consideram o
  * perfume inteiro como investimento (ver {@code planejamento_sistema_viabilidade_decantes.md}, §12).
+ * {@code roi} é o retorno sobre o investimento do lote, em pontos percentuais.
  */
 public record AnaliseViabilidade(
     Long produtoId,
     Long decanteId,
+    BigDecimal volumeMl,
     BigDecimal custoPorMl,
     BigDecimal custoProdutoNoDecante,
     BigDecimal custoEmbalagem,
@@ -22,6 +24,7 @@ public record AnaliseViabilidade(
     BigDecimal investimentoLote,
     BigDecimal receitaTotal,
     BigDecimal lucroTotal,
-    BigDecimal margemLote
+    BigDecimal margemLote,
+    BigDecimal roi
 ) {
 }

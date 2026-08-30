@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#AF5828">
+  <title>Ateliê de Decantes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div><b>Ateliê</b><span>de Decantes</span></div>
+      </div>
+      <nav class="nav" id="nav" aria-label="Seções">
+        <button data-go="inicio">Início</button>
+        <button data-go="perfumes">Perfumes</button>
+        <button data-go="insumos">Insumos</button>
+        <button data-go="viabilidade">Viabilidade</button>
+      </nav>
+      <p class="note">Simulador de viabilidade para venda de decantes de perfume.</p>
+    </aside>
+    <main class="main">
+      <section class="screen" id="screen" aria-live="polite"></section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
