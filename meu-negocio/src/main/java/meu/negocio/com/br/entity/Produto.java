@@ -26,7 +26,7 @@ public class Produto extends Auditable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String nome;
-    private String marca;
+    private Long marcaId;
     private String categoria;
     private String sku;
     private Long fornecedorPrincipalId;
@@ -38,9 +38,9 @@ public class Produto extends Auditable {
     private int userId = 1;
     private boolean ativo;
 
-    public Produto(String nome, String marca, String categoria, String sku, Long fornecedorPrincipalId, BigDecimal precoVenda, BigDecimal precoCusto, BigDecimal volumeMl, int estoqueAtual, int estoqueMinimo) {
+    public Produto(String nome, Long marcaId, String categoria, String sku, Long fornecedorPrincipalId, BigDecimal precoVenda, BigDecimal precoCusto, BigDecimal volumeMl, int estoqueAtual, int estoqueMinimo) {
         this.nome = exigirNomeValido(nome);
-        this.marca = marca;
+        this.marcaId = marcaId;
         this.categoria = categoria;
         this.sku = sku;
         this.fornecedorPrincipalId = fornecedorPrincipalId;
@@ -109,8 +109,8 @@ public class Produto extends Auditable {
         return nome;
     }
 
-    public String getMarca() {
-        return marca;
+    public Long getMarcaId() {
+        return marcaId;
     }
 
     public String getCategoria() {

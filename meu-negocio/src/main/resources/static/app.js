@@ -7,6 +7,7 @@
 const IC = {
   inicio: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
   perfumes: '<path d="M10 2h4v3h-4z"/><path d="M9 5h6l1 4v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9z"/><path d="M8 13h8"/>',
+  marcas: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
   insumos: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
   viabilidade: '<path d="M12 3v18"/><path d="M6 7h12"/><path d="m6 7-3 6h6z"/><path d="m18 7-3 6h6z"/><path d="M8 21h8"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
@@ -31,6 +32,44 @@ const parseNum = (v) => {
   return Number.isNaN(n) ? null : n;
 };
 const custoMl = (p) => (p.precoCusto > 0 && p.volumeMl > 0 ? p.precoCusto / p.volumeMl : null);
+
+const carregarMarcas = () => listar('/marcas?size=500&sort=nome,asc');
+const mapaMarcas = (arr) => new Map(arr.map((m) => [m.id, m.nome]));
+const marcaSelect = (marcas, sel, id) =>
+  `<select id="${id}"><option value="">— sem marca —</option>${marcas
+    .map((m) => `<option value="${m.id}"${m.id === sel ? ' selected' : ''}>${esc(m.nome)}</option>`)
+    .join('')}</select>`;
+
+async function criarMarcaRapida() {
+  const nome = window.prompt('Nome da nova marca (ex.: Chanel):');
+  if (!nome || !nome.trim()) return null;
+  try {
+    const m = await api('/marcas', {
+      method: 'POST',
+      body: JSON.stringify({ nome: nome.trim(), pais: null, ativo: true }),
+    });
+    toast('Marca cadastrada.');
+    return m;
+  } catch (e) {
+    toast(e.message, true);
+    return null;
+  }
+}
+/** Liga o botão "+ nova marca": cria e injeta a opção no <select> alvo. */
+function ligarNovaMarca(btnId, selectId) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const m = await criarMarcaRapida();
+    if (!m) return;
+    const sel = document.getElementById(selectId);
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.nome;
+    sel.appendChild(opt);
+    sel.value = String(m.id);
+  });
+}
 
 let toastTimer;
 function toast(msg, isError = false) {
@@ -66,7 +105,7 @@ const listar = (path) => api(path).then((page) => (page && page.content) || []);
 const state = { route: 'inicio', perfumeId: null };
 const NAV_FOR = {
   inicio: 'inicio', perfumes: 'perfumes', perfume: 'perfumes',
-  insumos: 'insumos', viabilidade: 'viabilidade',
+  marcas: 'marcas', insumos: 'insumos', viabilidade: 'viabilidade',
 };
 
 async function go(route, params = {}) {
@@ -89,10 +128,12 @@ const reload = () => go(state.route);
 /* ================= TELAS ================= */
 
 async function renderInicio() {
-  const [perfumes, decantes] = await Promise.all([
+  const [perfumes, decantes, marcas] = await Promise.all([
     listar('/produtos?size=500&sort=nome,asc'),
     listar('/decantes?size=999'),
+    carregarMarcas(),
   ]);
+  const mm = mapaMarcas(marcas);
   const decAtivos = decantes.filter((d) => d.ativo);
   const investido = perfumes.reduce((s, p) => s + (Number(p.precoCusto) || 0), 0);
 
@@ -138,7 +179,7 @@ async function renderInicio() {
         const ds = decAtivos.filter((d) => d.produtoId === p.id).length;
         const cm = custoMl(p);
         return `<button class="row" data-open-perfume="${p.id}">
-          <div class="name">${esc(p.nome)}<small>${esc(p.marca || '—')}</small></div>
+          <div class="name">${esc(p.nome)}<small>${esc(mm.get(p.marcaId) || '—')}</small></div>
           <div class="cell"><small>Custo / ml</small><b>${cm ? brl(cm) : '—'}</b></div>
           <div class="cell"><small>Volume</small><b>${p.volumeMl ? mlf(p.volumeMl) : '—'}</b></div>
           <div class="cell"><small>Decantes</small><b>${ds || '—'}</b></div>
@@ -156,10 +197,12 @@ async function renderInicio() {
 }
 
 async function renderPerfumes() {
-  const [perfumes, decantes] = await Promise.all([
+  const [perfumes, decantes, marcas] = await Promise.all([
     listar('/produtos?size=500&sort=nome,asc'),
     listar('/decantes?size=999'),
+    carregarMarcas(),
   ]);
+  const mm = mapaMarcas(marcas);
 
   mount(`
     <div class="page-head">
@@ -174,7 +217,7 @@ async function renderPerfumes() {
           return `<button class="pcard" data-open-perfume="${p.id}">
             <div>
               <h3>${esc(p.nome)}</h3>
-              <div class="brand-line">${esc(p.marca || '—')}</div>
+              <div class="brand-line">${esc(mm.get(p.marcaId) || '—')}</div>
             </div>
             <div class="chips">
               <span class="chip">${brl(p.precoCusto)}</span>
@@ -196,7 +239,8 @@ async function renderPerfumes() {
             </div>
             <div class="field">
               <label for="p-marca">Marca</label>
-              <input id="p-marca" placeholder="Carolina Herrera">
+              ${marcaSelect(marcas, null, 'p-marca')}
+              <button type="button" class="btn ghost sm" id="p-nova-marca">+ nova marca</button>
             </div>
             <div class="field row2">
               <div class="field">
@@ -222,6 +266,7 @@ async function renderPerfumes() {
 
   screenEl().querySelectorAll('[data-open-perfume]').forEach((b) =>
     b.addEventListener('click', () => go('perfume', { perfumeId: Number(b.dataset.openPerfume) })));
+  ligarNovaMarca('p-nova-marca', 'p-marca');
 
   $('#f-perfume').addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -237,7 +282,7 @@ async function renderPerfumes() {
       await api('/produtos', {
         method: 'POST',
         body: JSON.stringify({
-          nome, marca: $('#p-marca').value.trim() || null, categoria: 'Perfume',
+          nome, marcaId: parseNum($('#p-marca').value) || null, categoria: 'Perfume',
           sku: null, fornecedorPrincipalId: null,
           precoVenda: parseNum($('#p-venda').value) || 0,
           precoCusto, volumeMl, estoqueAtual: 0, estoqueMinimo: 0, ativo: true,
@@ -254,12 +299,14 @@ async function renderPerfumes() {
 
 async function renderPerfume() {
   const id = state.perfumeId;
-  const [p, decantes, insumos] = await Promise.all([
+  const [p, decantes, insumos, marcas] = await Promise.all([
     api(`/produtos/${id}`),
     listar(`/decantes?produtoId=${id}&size=999`),
     listar('/insumos?size=500&sort=nome,asc'),
+    carregarMarcas(),
   ]);
   const insumosAtivos = insumos.filter((i) => i.ativo);
+  const mm = mapaMarcas(marcas);
   const cm = custoMl(p);
 
   const optsFor = (palavra) => {
@@ -274,7 +321,7 @@ async function renderPerfume() {
     <button class="back" data-back>${svg('arrow')} Perfumes</button>
 
     <div class="ficha">
-      <div class="title">${esc(p.nome)}<small>${esc(p.marca || '—')}</small></div>
+      <div class="title">${esc(p.nome)}<small>${esc(mm.get(p.marcaId) || '—')}</small></div>
       <div class="m"><span>Preço de custo</span><b>${brl(p.precoCusto)}</b></div>
       <div class="m"><span>Volume</span><b>${p.volumeMl ? mlf(p.volumeMl) : '—'}</b></div>
       <div class="m"><span>Custo por ml</span><b>${cm ? brl(cm) : '—'}</b></div>
@@ -291,7 +338,11 @@ async function renderPerfume() {
       <div class="card-b">
         <form id="f-editar-perfume">
           <div class="field"><label for="e-nome">Nome</label><input id="e-nome" value="${esc(p.nome)}" required></div>
-          <div class="field"><label for="e-marca">Marca</label><input id="e-marca" value="${esc(p.marca || '')}"></div>
+          <div class="field">
+            <label for="e-marca">Marca</label>
+            ${marcaSelect(marcas, p.marcaId, 'e-marca')}
+            <button type="button" class="btn ghost sm" id="e-nova-marca">+ nova marca</button>
+          </div>
           <div class="field row2">
             <div class="field"><label for="e-custo">Preço de custo (R$)</label>
               <input id="e-custo" type="number" min="0" step="0.01" value="${p.precoCusto ?? ''}" required></div>
@@ -353,6 +404,7 @@ async function renderPerfume() {
   const box = $('#box-editar-perfume');
   $('#b-editar-perfume').addEventListener('click', () => { box.hidden = !box.hidden; });
   $('#b-cancelar-editar').addEventListener('click', () => { box.hidden = true; });
+  ligarNovaMarca('e-nova-marca', 'e-marca');
   $('#f-editar-perfume').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const nome = $('#e-nome').value.trim();
@@ -366,7 +418,7 @@ async function renderPerfume() {
       await api(`/produtos/${id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          nome, marca: $('#e-marca').value.trim() || null, categoria: p.categoria || 'Perfume',
+          nome, marcaId: parseNum($('#e-marca').value) || null, categoria: p.categoria || 'Perfume',
           sku: p.sku || null, fornecedorPrincipalId: p.fornecedorPrincipalId || null,
           precoVenda: parseNum($('#e-venda').value) || 0, precoCusto, volumeMl,
           estoqueAtual: p.estoqueAtual || 0, estoqueMinimo: p.estoqueMinimo || 0, ativo: true,
@@ -520,6 +572,96 @@ async function renderInsumos() {
   draw();
 }
 
+async function renderMarcas() {
+  const [marcas, perfumes] = await Promise.all([
+    carregarMarcas(),
+    listar('/produtos?size=999'),
+  ]);
+  const contagem = (marcaId) => perfumes.filter((p) => p.marcaId === marcaId).length;
+  let editando = null;
+
+  const draw = () => {
+    mount(`
+      <div class="page-head">
+        <h1>Marcas</h1>
+        <p>Cadastre as marcas uma vez e reaproveite em vários perfumes. Depois dá para agrupar as análises por marca.</p>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h">Marcas</div>
+          <div class="card-b" style="padding:0">
+            ${marcas.length ? `<div class="tbl-wrap"><table class="tbl">
+              <thead><tr><th>Marca</th><th>País</th><th class="num">Perfumes</th><th>Status</th><th></th></tr></thead>
+              <tbody>${marcas.map((m) => `<tr>
+                <td><b>${esc(m.nome)}</b></td>
+                <td>${esc(m.pais || '—')}</td>
+                <td class="num">${contagem(m.id)}</td>
+                <td>${m.ativo ? '<span class="pill good">ativa</span>' : '<span class="pill bad">inativa</span>'}</td>
+                <td class="row-actions">
+                  <button class="btn ghost sm" data-edit="${m.id}">Editar</button>
+                  <button class="btn danger sm" data-del="${m.id}">Excluir</button>
+                </td>
+              </tr>`).join('')}</tbody>
+            </table></div>` : '<div class="card-b"><div class="empty">Nenhuma marca cadastrada.</div></div>'}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">${editando ? 'Editar marca' : 'Adicionar marca'}</div>
+          <div class="card-b">
+            <form id="f-marca">
+              <div class="field"><label for="m-nome">Nome</label><input id="m-nome" required placeholder="Chanel"></div>
+              <div class="field"><label for="m-pais">País (opcional)</label><input id="m-pais" placeholder="França"></div>
+              <label class="hint" style="display:flex;gap:.4rem;align-items:center">
+                <input type="checkbox" id="m-ativo" checked style="width:auto"> Ativa
+              </label>
+              <div class="form-actions">
+                <button class="btn" type="submit">${editando ? 'Salvar alterações' : 'Salvar marca'}</button>
+                ${editando ? '<button class="btn ghost" type="button" id="m-cancelar">Cancelar</button>' : ''}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    `);
+
+    const item = editando ? marcas.find((m) => m.id === editando) : null;
+    if (item) {
+      $('#m-nome').value = item.nome || '';
+      $('#m-pais').value = item.pais || '';
+      $('#m-ativo').checked = !!item.ativo;
+      $('#m-cancelar').addEventListener('click', () => { editando = null; draw(); });
+    }
+
+    screenEl().querySelectorAll('[data-edit]').forEach((b) =>
+      b.addEventListener('click', () => { editando = Number(b.dataset.edit); draw(); window.scrollTo({ top: 0 }); }));
+    screenEl().querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Excluir esta marca?')) return;
+      try {
+        await api(`/marcas/${b.dataset.del}`, { method: 'DELETE' });
+        toast('Marca excluída.');
+        go('marcas');
+      } catch (e) { toast(e.message, true); }
+    }));
+
+    $('#f-marca').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const nome = $('#m-nome').value.trim();
+      if (!nome) return toast('Dê um nome à marca.', true);
+      const payload = JSON.stringify({ nome, pais: $('#m-pais').value.trim() || null, ativo: $('#m-ativo').checked });
+      ev.submitter.disabled = true;
+      try {
+        if (editando) await api(`/marcas/${editando}`, { method: 'PUT', body: payload });
+        else await api('/marcas', { method: 'POST', body: payload });
+        toast(editando ? 'Marca atualizada.' : 'Marca cadastrada.');
+        go('marcas');
+      } catch (e) { toast(e.message, true); ev.submitter.disabled = false; }
+    });
+  };
+
+  draw();
+}
+
 /* --------- comparação / viabilidade --------- */
 function bottle(ml, max) {
   const h = 34 + (ml / max) * 46;
@@ -549,7 +691,10 @@ async function renderViabilidade() {
     <select id="v-sel">${perfumes.map((p) => `<option value="${p.id}" ${p.id === id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}</select>
   </div>`;
 
-  const [p, dados] = await Promise.all([api(`/produtos/${id}`), api(`/produtos/${id}/analise`)]);
+  const [p, dados, marcas] = await Promise.all([
+    api(`/produtos/${id}`), api(`/produtos/${id}/analise`), carregarMarcas(),
+  ]);
+  const mm = mapaMarcas(marcas);
   const analises = [...dados.comparacao.analises].sort((a, b) => Number(a.volumeMl) - Number(b.volumeMl));
   const recs = dados.recomendacoes || [];
   const cm = custoMl(p);
@@ -570,7 +715,7 @@ async function renderViabilidade() {
     ${seletor}
 
     <div class="ficha">
-      <div class="title">${esc(p.nome)}<small>${esc(p.marca || '—')}</small></div>
+      <div class="title">${esc(p.nome)}<small>${esc(mm.get(p.marcaId) || '—')}</small></div>
       <div class="m"><span>Custo do frasco</span><b>${brl(p.precoCusto)}</b></div>
       <div class="m"><span>Volume</span><b>${p.volumeMl ? mlf(p.volumeMl) : '—'}</b></div>
       <div class="m"><span>Custo por ml</span><b>${cm ? brl(cm) : '—'}</b></div>
@@ -633,6 +778,7 @@ const RENDERERS = {
   inicio: renderInicio,
   perfumes: renderPerfumes,
   perfume: renderPerfume,
+  marcas: renderMarcas,
   insumos: renderInsumos,
   viabilidade: renderViabilidade,
 };
