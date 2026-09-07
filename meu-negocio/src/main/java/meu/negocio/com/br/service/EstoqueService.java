@@ -11,9 +11,12 @@ import meu.negocio.com.br.entity.FrascoAberto;
 import meu.negocio.com.br.entity.FrascoAberto.StatusFrasco;
 import meu.negocio.com.br.entity.LoteCompra;
 import meu.negocio.com.br.entity.Produto;
+import meu.negocio.com.br.entity.Venda;
+import meu.negocio.com.br.entity.Venda.TipoVenda;
 import meu.negocio.com.br.repository.FrascoAbertoRepository;
 import meu.negocio.com.br.repository.LoteCompraRepository;
 import meu.negocio.com.br.repository.ProdutoRepository;
+import meu.negocio.com.br.repository.VendaRepository;
 
 /**
  * Consolida o estoque de um perfume a partir das compras ({@link LoteCompra}) e dos
@@ -32,13 +35,16 @@ public class EstoqueService {
     private final ProdutoRepository produtoRepository;
     private final LoteCompraRepository loteCompraRepository;
     private final FrascoAbertoRepository frascoAbertoRepository;
+    private final VendaRepository vendaRepository;
 
     public EstoqueService(ProdutoService produtoService, ProdutoRepository produtoRepository,
-            LoteCompraRepository loteCompraRepository, FrascoAbertoRepository frascoAbertoRepository) {
+            LoteCompraRepository loteCompraRepository, FrascoAbertoRepository frascoAbertoRepository,
+            VendaRepository vendaRepository) {
         this.produtoService = produtoService;
         this.produtoRepository = produtoRepository;
         this.loteCompraRepository = loteCompraRepository;
         this.frascoAbertoRepository = frascoAbertoRepository;
+        this.vendaRepository = vendaRepository;
     }
 
     /** Carrega os dados do produto e devolve a foto do estoque. */
@@ -46,8 +52,11 @@ public class EstoqueService {
         Produto produto = produtoService.findById(produtoId);
         List<LoteCompra> lotes = loteCompraRepository.findByProdutoIdAndAtivoTrueOrderByDataCompraAsc(produtoId);
         List<FrascoAberto> frascos = frascoAbertoRepository.findByProdutoIdOrderByDataAberturaAsc(produtoId);
-        // Fase 2 liga o nº de frascos vendidos cheios; até lá é zero.
-        return calcular(produto, lotes, frascos, 0L);
+        long vendidosCheios = vendaRepository
+            .findByProdutoIdAndTipoAndAtivoTrue(produtoId, TipoVenda.VIDRO_CHEIO).stream()
+            .mapToLong(Venda::getQuantidade)
+            .sum();
+        return calcular(produto, lotes, frascos, vendidosCheios);
     }
 
     /**

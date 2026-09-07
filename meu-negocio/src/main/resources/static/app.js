@@ -11,6 +11,7 @@ const IC = {
   insumos: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
   viabilidade: '<path d="M12 3v18"/><path d="M6 7h12"/><path d="m6 7-3 6h6z"/><path d="m18 7-3 6h6z"/><path d="M8 21h8"/>',
   estoque: '<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
+  vendas: '<path d="M3 3h2l2.2 11.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
   arrow: '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
 };
@@ -106,7 +107,7 @@ const listar = (path) => api(path).then((page) => (page && page.content) || []);
 const state = { route: 'inicio', perfumeId: null };
 const NAV_FOR = {
   inicio: 'inicio', perfumes: 'perfumes', perfume: 'perfumes',
-  marcas: 'marcas', insumos: 'insumos', estoque: 'estoque', viabilidade: 'viabilidade',
+  marcas: 'marcas', insumos: 'insumos', estoque: 'estoque', vendas: 'vendas', viabilidade: 'viabilidade',
 };
 
 /* yyyy-mm-dd -> dd/mm/aaaa (data vem da API como texto ISO) */
@@ -133,10 +134,11 @@ const reload = () => go(state.route);
 /* ================= TELAS ================= */
 
 async function renderInicio() {
-  const [perfumes, decantes, marcas] = await Promise.all([
+  const [perfumes, decantes, marcas, resultado] = await Promise.all([
     listar('/produtos?size=500&sort=nome,asc'),
     listar('/decantes?size=999'),
     carregarMarcas(),
+    api('/resultado').catch(() => null),
   ]);
   const mm = mapaMarcas(marcas);
   const decAtivos = decantes.filter((d) => d.ativo);
@@ -166,6 +168,13 @@ async function renderInicio() {
       <div class="tile"><div class="k">Decantes</div><div class="v">${decAtivos.length}</div><div class="s">configurados</div></div>
       <div class="tile"><div class="k">Investido em perfumes</div><div class="v">${brl(investido)}</div><div class="s">soma do preço de custo</div></div>
     </div>
+
+    ${resultado && resultado.numVendas ? `
+    <div class="tiles">
+      <div class="tile"><div class="k">Faturamento</div><div class="v">${brl(resultado.faturamento)}</div><div class="s">${resultado.numVendas} venda(s)</div></div>
+      <div class="tile"><div class="k">Lucro</div><div class="v">${brl(resultado.lucroBruto)}</div><div class="s">margem ${pctf(resultado.margemMedia)}</div></div>
+      <div class="tile"><div class="k">Ticket médio</div><div class="v">${brl(resultado.ticketMedio)}</div><div class="s">por venda</div></div>
+    </div>` : ''}
 
     ${melhor ? `
     <div class="opp">
@@ -862,6 +871,131 @@ async function renderEstoque() {
   }));
 }
 
+/* --------- vendas --------- */
+const tipoVendaLabel = { VIDRO_CHEIO: 'vidro cheio', DECANTE: 'decante' };
+
+async function renderVendas() {
+  const [perfumes, vendas, resultado] = await Promise.all([
+    listar('/produtos?size=500&sort=nome,asc'),
+    listar('/vendas?size=999&sort=dataVenda,desc'),
+    api('/resultado').catch(() => null),
+  ]);
+  if (!perfumes.length) {
+    mount('<div class="page-head"><h1>Vendas</h1></div><div class="empty">Cadastre um perfume primeiro.</div>');
+    return;
+  }
+  const nomePerfume = (id) => (perfumes.find((p) => p.id === id) || {}).nome || '—';
+
+  const selId = perfumes.some((p) => p.id === state.perfumeId) ? state.perfumeId : perfumes[0].id;
+  const est = await api(`/produtos/${selId}/estoque`).catch(() => null);
+  const lacrados = est ? est.frascosLacrados : 0;
+
+  mount(`
+    <div class="page-head">
+      <h1>Vendas</h1>
+      <p>Cada venda tem o <b>lucro congelado</b> no momento — comprar um frasco mais caro depois não muda uma venda passada.</p>
+    </div>
+
+    ${resultado && resultado.numVendas ? `<div class="tiles">
+      <div class="tile"><div class="k">Faturamento</div><div class="v">${brl(resultado.faturamento)}</div><div class="s">${resultado.numVendas} venda(s)</div></div>
+      <div class="tile"><div class="k">Lucro</div><div class="v">${brl(resultado.lucroBruto)}</div><div class="s">margem ${pctf(resultado.margemMedia)}</div></div>
+      <div class="tile"><div class="k">Ticket médio</div><div class="v">${brl(resultado.ticketMedio)}</div><div class="s">por venda</div></div>
+    </div>` : ''}
+
+    <div class="card" style="margin-bottom:1.4rem">
+      <div class="card-h">Registrar venda</div>
+      <div class="card-b">
+        <form id="f-venda">
+          <div class="field"><label for="s-perfume">Perfume</label>
+            <select id="s-perfume">${perfumes.map((p) => `<option value="${p.id}" ${p.id === selId ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}</select>
+            <span class="hint">${lacrados} frasco(s) lacrado(s) em estoque</span>
+          </div>
+          <div class="field"><label for="s-tipo">Tipo</label>
+            <select id="s-tipo">
+              <option value="VIDRO_CHEIO">Vidro cheio (frasco lacrado)</option>
+              <option value="DECANTE" disabled>Decante — chega na Fase 3</option>
+            </select>
+          </div>
+          <div class="field row2">
+            <div class="field"><label for="s-qtd">Quantos frascos</label>
+              <input id="s-qtd" type="number" min="1" step="1" value="1"></div>
+            <div class="field"><label for="s-preco">Preço cobrado por frasco (R$)</label>
+              <input id="s-preco" type="number" min="0" step="0.01" required placeholder="350,00"></div>
+          </div>
+          <div class="field row2">
+            <div class="field"><label for="s-data">Data</label>
+              <input id="s-data" type="date" value="${hojeIso()}"></div>
+            <div class="field"><label for="s-pgto">Pagamento (opcional)</label>
+              <input id="s-pgto" placeholder="Pix, dinheiro…"></div>
+          </div>
+          <button class="btn" type="submit"${lacrados < 1 ? ' disabled' : ''}>Registrar venda</button>
+          ${lacrados < 1 ? '<span class="hint" style="color:var(--danger)">Sem frasco lacrado deste perfume — registre uma compra em Estoque.</span>' : ''}
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Vendas registradas</div>
+      <div class="card-b" style="padding:0">
+        ${vendas.length ? `<div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Data</th><th>Perfume</th><th>Tipo</th><th class="num">Qtd</th><th class="num">Preço un.</th><th class="num">Custo un.</th><th class="num">Receita</th><th class="num">Lucro</th><th></th></tr></thead>
+          <tbody>${vendas.map((v) => `<tr>
+            <td>${dataBr(v.dataVenda)}</td>
+            <td><b>${esc(nomePerfume(v.produtoId))}</b></td>
+            <td>${tipoVendaLabel[v.tipo] || esc(v.tipo || '')}</td>
+            <td class="num">${v.quantidade}</td>
+            <td class="num">${brl(v.precoUnitario)}</td>
+            <td class="num">${brl(v.custoUnitario)}</td>
+            <td class="num">${brl(v.receitaTotal)}</td>
+            <td class="num">${brl(v.lucroTotal)}</td>
+            <td class="row-actions"><button class="btn danger sm" data-del-venda="${v.id}">Excluir</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        ${resultado ? `<p class="hint" style="padding:.8rem 1rem;margin:0">Total: faturamento <b>${brl(resultado.faturamento)}</b> · lucro <b>${brl(resultado.lucroBruto)}</b></p>` : ''}`
+        : '<div class="card-b"><div class="empty">Nenhuma venda registrada.</div></div>'}
+      </div>
+    </div>
+  `);
+
+  const root = screenEl();
+  const selPerfume = $('#s-perfume');
+  selPerfume.addEventListener('change', () => { state.perfumeId = Number(selPerfume.value); go('vendas'); });
+
+  $('#f-venda').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const produtoId = Number(selPerfume.value);
+    const quantidade = parseNum($('#s-qtd').value);
+    const precoUnitario = parseNum($('#s-preco').value);
+    if (!quantidade || quantidade <= 0) return toast('Informe quantos frascos foram vendidos.', true);
+    if (precoUnitario == null || precoUnitario < 0) return toast('Informe o preço cobrado.', true);
+    ev.submitter.disabled = true;
+    try {
+      await api('/vendas', {
+        method: 'POST',
+        body: JSON.stringify({
+          produtoId,
+          dataVenda: $('#s-data').value || null,
+          tipo: $('#s-tipo').value,
+          quantidade,
+          precoUnitario,
+          formaPagamento: $('#s-pgto').value.trim() || null,
+          observacao: null,
+          ativo: true,
+        }),
+      });
+      toast('Venda registrada.');
+      state.perfumeId = produtoId;
+      go('vendas');
+    } catch (err) { toast(err.message, true); ev.submitter.disabled = false; }
+  });
+
+  root.querySelectorAll('[data-del-venda]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('Excluir esta venda? O frasco volta pro estoque e o faturamento é recalculado.')) return;
+    try { await api(`/vendas/${b.dataset.delVenda}`, { method: 'DELETE' }); toast('Venda excluída.'); go('vendas'); }
+    catch (err) { toast(err.message, true); }
+  }));
+}
+
 /* --------- comparação / viabilidade --------- */
 function bottle(ml, max) {
   const h = 34 + (ml / max) * 46;
@@ -981,6 +1115,7 @@ const RENDERERS = {
   marcas: renderMarcas,
   insumos: renderInsumos,
   estoque: renderEstoque,
+  vendas: renderVendas,
   viabilidade: renderViabilidade,
 };
 
