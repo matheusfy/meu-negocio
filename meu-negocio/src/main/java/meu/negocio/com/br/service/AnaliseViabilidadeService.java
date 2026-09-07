@@ -58,7 +58,7 @@ public class AnaliseViabilidadeService {
             analises,
             idDoMelhor(analises, Comparator.comparing(AnaliseViabilidade::margem)),
             idDoMelhor(analises, Comparator.comparing(AnaliseViabilidade::lucroUnitario)),
-            idDoMelhor(analises, Comparator.comparing(AnaliseViabilidadeService::retornoInvestimento))
+            idDoMelhor(analises, Comparator.comparing(AnaliseViabilidade::roi))
         );
     }
 
@@ -86,10 +86,12 @@ public class AnaliseViabilidadeService {
         BigDecimal receitaTotal = dinheiro(precoVenda.multiply(BigDecimal.valueOf(quantidadeDecantes)));
         BigDecimal lucroTotal = dinheiro(receitaTotal.subtract(investimentoLote));
         BigDecimal margemLote = percentual(lucroTotal, receitaTotal);
+        BigDecimal roi = percentual(lucroTotal, investimentoLote);
 
         return new AnaliseViabilidade(
             produto.getId(),
             decante.getId(),
+            volumeDecante,
             custoPorMl,
             custoProdutoNoDecante,
             custoEmbalagem,
@@ -101,7 +103,8 @@ public class AnaliseViabilidadeService {
             investimentoLote,
             receitaTotal,
             lucroTotal,
-            margemLote
+            margemLote,
+            roi
         );
     }
 
@@ -110,14 +113,6 @@ public class AnaliseViabilidadeService {
             .max(criterio)
             .map(AnaliseViabilidade::decanteId)
             .orElse(null);
-    }
-
-    /** ROI do lote: lucro total sobre o investimento. Usado só para ordenar a comparação. */
-    private static BigDecimal retornoInvestimento(AnaliseViabilidade analise) {
-        if (analise.investimentoLote().signum() == 0) {
-            return BigDecimal.ZERO;
-        }
-        return analise.lucroTotal().divide(analise.investimentoLote(), ESCALA_PERCENTUAL + 2, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal percentual(BigDecimal parte, BigDecimal total) {

@@ -58,6 +58,8 @@ class AnaliseViabilidadeServiceTest {
         assertEquals(new BigDecimal("600.00"), analise.receitaTotal());
         assertEquals(new BigDecimal("246.00"), analise.lucroTotal());
         assertEquals(new BigDecimal("41.00"), analise.margemLote());
+        assertEquals(new BigDecimal("69.49"), analise.roi());
+        assertEquals(new BigDecimal("5"), analise.volumeMl());
         assertEquals(1L, analise.produtoId());
         assertEquals(10L, analise.decanteId());
     }
@@ -81,6 +83,7 @@ class AnaliseViabilidadeServiceTest {
         assertEquals(new BigDecimal("660.00"), analise.receitaTotal());
         assertEquals(new BigDecimal("287.40"), analise.lucroTotal());
         assertEquals(new BigDecimal("43.55"), analise.margemLote());
+        assertEquals(new BigDecimal("77.13"), analise.roi());
     }
 
     @Test
