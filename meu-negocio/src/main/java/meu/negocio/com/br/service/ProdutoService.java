@@ -30,7 +30,7 @@ public class ProdutoService {
     public Produto update(Long id, Produto dadosAtualizados) {
         Produto produto = findById(id);
         produto.setNome(dadosAtualizados.getNome());
-        produto.setMarca(dadosAtualizados.getMarca());
+        produto.setMarcaId(dadosAtualizados.getMarcaId());
         produto.setCategoria(dadosAtualizados.getCategoria());
         produto.setSku(dadosAtualizados.getSku());
         produto.setFornecedorPrincipalId(dadosAtualizados.getFornecedorPrincipalId());

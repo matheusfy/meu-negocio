@@ -14,7 +14,7 @@ public record ProdutoDTO(
     @NotBlank(message = "Nome do produto é obrigatório")
     String nome,
 
-    String marca,
+    Long marcaId,
     String categoria,
     String sku,
     Long fornecedorPrincipalId,
@@ -47,7 +47,7 @@ public record ProdutoDTO(
         this(
             produto.getId(),
             produto.getNome(),
-            produto.getMarca(),
+            produto.getMarcaId(),
             produto.getCategoria(),
             produto.getSku(),
             produto.getFornecedorPrincipalId(),
@@ -68,7 +68,7 @@ public record ProdutoDTO(
         Produto produto = new Produto();
         produto.setId(this.id);
         produto.setNome(this.nome);
-        produto.setMarca(this.marca);
+        produto.setMarcaId(this.marcaId);
         produto.setCategoria(this.categoria);
         produto.setSku(this.sku);
         produto.setFornecedorPrincipalId(this.fornecedorPrincipalId);

@@ -76,7 +76,8 @@ Fluxo típico da mãe: **Início → clica no perfume → vê os decantes → "C
 
 Campos vindos do código atual (`dto/`):
 
-- **`ProdutoDTO`**: `id, nome, marca, categoria, sku, fornecedorPrincipalId, precoVenda, precoCusto, volumeMl, estoqueAtual, estoqueMinimo, ativo` + auditoria (`criadoEm, atualizadoEm, criadoPor, atualizadoPor` — **somente leitura, não enviar**).
+- **`ProdutoDTO`**: `id, nome, marcaId, categoria, sku, fornecedorPrincipalId, precoVenda, precoCusto, volumeMl, estoqueAtual, estoqueMinimo, ativo` + auditoria (`criadoEm, atualizadoEm, criadoPor, atualizadoPor` — **somente leitura, não enviar**). `marcaId` é FK opcional para `Marca`.
+- **`MarcaDTO`**: `id, nome, pais, ativo` + auditoria. CRUD em `/api/v1/marcas`. Excluir marca em uso → 409.
   - Para a viabilidade não estourar 400, `precoCusto` e `volumeMl` **precisam estar preenchidos e > 0**.
 - **`CustoInsumoDTO`**: `id, nome, custoUnitario, unidade, ativo` + auditoria.
 - **`DecanteDTO`**: `id, produtoId (obrigatório), volumeMl (obrigatório, > 0), precoVenda, custoEmbalagem, custoSeringa, custoEtiqueta, ativo` + auditoria.
