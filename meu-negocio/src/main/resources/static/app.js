@@ -10,6 +10,7 @@ const IC = {
   marcas: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
   insumos: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
   viabilidade: '<path d="M12 3v18"/><path d="M6 7h12"/><path d="m6 7-3 6h6z"/><path d="m18 7-3 6h6z"/><path d="M8 21h8"/>',
+  estoque: '<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
   arrow: '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
 };
@@ -105,8 +106,12 @@ const listar = (path) => api(path).then((page) => (page && page.content) || []);
 const state = { route: 'inicio', perfumeId: null };
 const NAV_FOR = {
   inicio: 'inicio', perfumes: 'perfumes', perfume: 'perfumes',
-  marcas: 'marcas', insumos: 'insumos', viabilidade: 'viabilidade',
+  marcas: 'marcas', insumos: 'insumos', estoque: 'estoque', viabilidade: 'viabilidade',
 };
+
+/* yyyy-mm-dd -> dd/mm/aaaa (data vem da API como texto ISO) */
+const dataBr = (s) => (s ? String(s).slice(0, 10).split('-').reverse().join('/') : '—');
+const hojeIso = () => new Date().toISOString().slice(0, 10);
 
 async function go(route, params = {}) {
   if (params.perfumeId != null) state.perfumeId = params.perfumeId;
@@ -299,15 +304,17 @@ async function renderPerfumes() {
 
 async function renderPerfume() {
   const id = state.perfumeId;
-  const [p, decantes, insumos, marcas] = await Promise.all([
+  const [p, decantes, insumos, marcas, est] = await Promise.all([
     api(`/produtos/${id}`),
     listar(`/decantes?produtoId=${id}&size=999`),
     listar('/insumos?size=500&sort=nome,asc'),
     carregarMarcas(),
+    api(`/produtos/${id}/estoque`).catch(() => null),
   ]);
   const insumosAtivos = insumos.filter((i) => i.ativo);
   const mm = mapaMarcas(marcas);
   const cm = custoMl(p);
+  const custoVemDasCompras = !!(est && est.temCompras);
 
   const optsFor = (palavra) => {
     const pref = insumosAtivos.filter((i) => (i.nome || '').toLowerCase().includes(palavra));
@@ -322,9 +329,10 @@ async function renderPerfume() {
 
     <div class="ficha">
       <div class="title">${esc(p.nome)}<small>${esc(mm.get(p.marcaId) || '—')}</small></div>
-      <div class="m"><span>Preço de custo</span><b>${brl(p.precoCusto)}</b></div>
+      <div class="m"><span>${custoVemDasCompras ? 'Custo médio do frasco' : 'Preço de custo'}</span><b>${brl(p.precoCusto)}</b></div>
       <div class="m"><span>Volume</span><b>${p.volumeMl ? mlf(p.volumeMl) : '—'}</b></div>
       <div class="m"><span>Custo por ml</span><b>${cm ? brl(cm) : '—'}</b></div>
+      ${est ? `<div class="m"><span>Em estoque</span><b>${est.frascosLacrados} lacrado(s)${est.frascosAbertos ? ` · ${est.frascosAbertos} aberto(s)` : ''}</b></div>` : ''}
     </div>
 
     <div class="form-actions" style="margin-bottom:1.6rem">
@@ -345,7 +353,8 @@ async function renderPerfume() {
           </div>
           <div class="field row2">
             <div class="field"><label for="e-custo">Preço de custo (R$)</label>
-              <input id="e-custo" type="number" min="0" step="0.01" value="${p.precoCusto ?? ''}" required></div>
+              <input id="e-custo" type="number" min="0" step="0.01" value="${p.precoCusto ?? ''}" required${custoVemDasCompras ? ' readonly' : ''}>
+              ${custoVemDasCompras ? '<span class="hint">Calculado pela média das compras. Edite em <b>Estoque</b>.</span>' : ''}</div>
             <div class="field"><label for="e-vol">Volume (ml)</label>
               <input id="e-vol" type="number" min="1" step="1" value="${p.volumeMl ?? ''}" required></div>
           </div>
@@ -662,6 +671,197 @@ async function renderMarcas() {
   draw();
 }
 
+/* --------- estoque --------- */
+const statusFrascoPill = (s) => {
+  const c = s === 'ABERTO' ? 'good' : s === 'DESCARTADO' ? 'bad' : 'mid';
+  return `<span class="pill ${c}">${esc((s || '').toLowerCase())}</span>`;
+};
+
+async function renderEstoque() {
+  const perfumes = await listar('/produtos?size=500&sort=nome,asc');
+  if (!perfumes.length) {
+    mount('<div class="page-head"><h1>Estoque</h1></div><div class="empty">Cadastre um perfume primeiro.</div>');
+    return;
+  }
+  const marcas = await carregarMarcas();
+  const mm = mapaMarcas(marcas);
+  const estoques = await Promise.all(perfumes.map((p) => api(`/produtos/${p.id}/estoque`).catch(() => null)));
+  const estoquePorId = new Map();
+  perfumes.forEach((p, i) => estoquePorId.set(p.id, estoques[i]));
+
+  let selId = perfumes.some((p) => p.id === state.perfumeId) ? state.perfumeId : perfumes[0].id;
+  const nomeSel = () => (perfumes.find((p) => p.id === selId) || {}).nome || '';
+  const selecionar = (id) => { selId = id; state.perfumeId = id; go('estoque'); };
+
+  const [lotes, frascos] = await Promise.all([
+    listar(`/lotes?produtoId=${selId}&size=999&sort=dataCompra,asc`),
+    listar(`/frascos-abertos?produtoId=${selId}&size=999&sort=dataAbertura,asc`),
+  ]);
+
+  const e = estoquePorId.get(selId);
+  const semLacrado = !e || e.frascosLacrados < 1;
+
+  const resumo = !e ? '<div class="empty">Sem dados de estoque.</div>' : `
+    <div class="vline"><span>Frascos lacrados</span><b>${e.frascosLacrados}</b></div>
+    <div class="vline"><span>Pode vender um vidro cheio?</span><b>${e.podeVenderCheio ? 'Sim' : 'Não'}</b></div>
+    <div class="vline"><span>Frascos abertos</span><b>${e.frascosAbertos} · ${mlf(e.mlNosAbertos)}</b></div>
+    <div class="vline"><span>Custo médio do frasco</span><b>${e.custoMedioFrasco ? brl(e.custoMedioFrasco) : '—'}</b></div>
+    <div class="vline"><span>Valor parado em estoque</span><b>${e.custoMedioFrasco ? brl(e.valorEstoque) : '—'}</b></div>
+    ${e.abaixoDoMinimo ? '<p class="hint" style="color:var(--danger)">⚠ Frascos lacrados no mínimo ou abaixo.</p>' : ''}
+    ${e.temCompras ? '' : '<p class="hint">Sem compra lançada — o custo médio ainda usa o preço digitado no cadastro do perfume.</p>'}`;
+
+  mount(`
+    <div class="page-head">
+      <h1>Estoque</h1>
+      <p>Registre as <b>compras dos frascos</b>. O sistema calcula o <b>custo médio</b> e diz quantos frascos dá pra vender cheios.</p>
+    </div>
+
+    <div class="pcards" style="margin-bottom:1.6rem">
+      ${perfumes.map((p) => {
+        const pe = estoquePorId.get(p.id);
+        const lac = pe ? pe.frascosLacrados : 0;
+        return `<button class="pcard" data-sel="${p.id}"${p.id === selId ? ' style="border-color:var(--accent)"' : ''}>
+          <div><h3>${esc(p.nome)}</h3><div class="brand-line">${esc(mm.get(p.marcaId) || '—')}</div></div>
+          <div class="chips">
+            <span class="chip ${lac > 0 ? 'g' : ''}">${lac} lacrado(s)</span>
+            ${pe && pe.frascosAbertos ? `<span class="chip">${pe.frascosAbertos} aberto(s) · ${mlf(pe.mlNosAbertos)}</span>` : ''}
+            ${pe && pe.custoMedioFrasco ? `<span class="chip">${brl(pe.custoMedioFrasco)}/frasco</span>` : ''}
+          </div>
+          <div class="muted" style="font-size:.82rem">
+            ${pe && pe.abaixoDoMinimo ? '⚠ abaixo do mínimo · ' : ''}${pe && pe.custoMedioFrasco ? `${brl(pe.valorEstoque)} em estoque` : 'sem compra lançada'}
+          </div>
+        </button>`;
+      }).join('')}
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h">Registrar compra</div>
+        <div class="card-b">
+          <form id="f-lote">
+            <div class="field"><label for="l-perfume">Perfume</label>
+              <select id="l-perfume">${perfumes.map((p) => `<option value="${p.id}" ${p.id === selId ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}</select>
+            </div>
+            <div class="field row2">
+              <div class="field"><label for="l-data">Data da compra</label>
+                <input id="l-data" type="date" value="${hojeIso()}"></div>
+              <div class="field"><label for="l-qtd">Quantos frascos</label>
+                <input id="l-qtd" type="number" min="1" step="1" required placeholder="2"></div>
+            </div>
+            <div class="field row2">
+              <div class="field"><label for="l-preco">Preço por frasco (R$)</label>
+                <input id="l-preco" type="number" min="0" step="0.01" required placeholder="280,00"></div>
+              <div class="field"><label for="l-frete">Frete / taxas (R$)</label>
+                <input id="l-frete" type="number" min="0" step="0.01" placeholder="opcional"></div>
+            </div>
+            <div class="field"><label for="l-fornec">Fornecedor (opcional)</label>
+              <input id="l-fornec" placeholder="Ex.: loja X"></div>
+            <span class="hint">O frete é dividido entre os frascos deste lote e entra no custo médio.</span>
+            <button class="btn" type="submit">Salvar compra</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">${esc(nomeSel())} — resumo</div>
+        <div class="card-b">
+          ${resumo}
+          <div class="form-actions" style="margin-top:1rem">
+            <button class="btn ghost sm" id="b-abrir-frasco"${semLacrado ? ' disabled title="Sem frasco lacrado em estoque"' : ''}>Abrir um frasco pra decantar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.4rem">
+      <div class="card-h">Compras de ${esc(nomeSel())}</div>
+      <div class="card-b" style="padding:0">
+        ${lotes.length ? `<div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Data</th><th class="num">Frascos</th><th class="num">Preço/frasco</th><th class="num">Frete</th><th class="num">Custo efetivo</th><th></th></tr></thead>
+          <tbody>${lotes.map((l) => `<tr>
+            <td>${dataBr(l.dataCompra)}</td>
+            <td class="num">${l.quantidadeFrascos}</td>
+            <td class="num">${brl(l.precoUnitario)}</td>
+            <td class="num">${brl(l.custoAdicional)}</td>
+            <td class="num">${brl(l.custoEfetivoFrasco)}</td>
+            <td class="row-actions"><button class="btn danger sm" data-del-lote="${l.id}">Excluir</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>` : '<div class="card-b"><div class="empty">Nenhuma compra registrada para este perfume.</div></div>'}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.4rem">
+      <div class="card-h">Frascos abertos de ${esc(nomeSel())}</div>
+      <div class="card-b" style="padding:0">
+        ${frascos.length ? `<div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Aberto em</th><th class="num">Volume</th><th class="num">Restante</th><th>Status</th><th></th></tr></thead>
+          <tbody>${frascos.map((f) => `<tr>
+            <td>${dataBr(f.dataAbertura)}</td>
+            <td class="num">${mlf(f.volumeInicialMl)}</td>
+            <td class="num">${mlf(f.mlRestante)}</td>
+            <td>${statusFrascoPill(f.status)}</td>
+            <td class="row-actions">${f.status === 'ABERTO' ? `<button class="btn danger sm" data-descartar="${f.id}">Descartar</button>` : ''}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>` : '<div class="card-b"><div class="empty">Nenhum frasco aberto.</div></div>'}
+      </div>
+    </div>
+  `);
+
+  const root = screenEl();
+  root.querySelectorAll('[data-sel]').forEach((b) =>
+    b.addEventListener('click', () => selecionar(Number(b.dataset.sel))));
+  $('#l-perfume').addEventListener('change', (ev) => selecionar(Number(ev.target.value)));
+
+  $('#f-lote').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const produtoId = Number($('#l-perfume').value);
+    const quantidadeFrascos = parseNum($('#l-qtd').value);
+    const precoUnitario = parseNum($('#l-preco').value);
+    if (!quantidadeFrascos || quantidadeFrascos <= 0) return toast('Informe quantos frascos você comprou.', true);
+    if (precoUnitario == null || precoUnitario < 0) return toast('Informe o preço pago por frasco.', true);
+    ev.submitter.disabled = true;
+    try {
+      await api('/lotes', {
+        method: 'POST',
+        body: JSON.stringify({
+          produtoId,
+          dataCompra: $('#l-data').value || null,
+          quantidadeFrascos,
+          precoUnitario,
+          custoAdicional: parseNum($('#l-frete').value) || 0,
+          fornecedor: $('#l-fornec').value.trim() || null,
+          observacao: null,
+          ativo: true,
+        }),
+      });
+      toast('Compra registrada.');
+      state.perfumeId = produtoId;
+      go('estoque');
+    } catch (err) { toast(err.message, true); ev.submitter.disabled = false; }
+  });
+
+  $('#b-abrir-frasco').addEventListener('click', async () => {
+    if (!confirm(`Abrir um frasco de "${nomeSel()}" pra decantar? Ele sai do estoque de frascos lacrados.`)) return;
+    try {
+      await api('/frascos-abertos', { method: 'POST', body: JSON.stringify({ produtoId: selId, dataAbertura: hojeIso() }) });
+      toast('Frasco aberto.');
+      go('estoque');
+    } catch (err) { toast(err.message, true); }
+  });
+
+  root.querySelectorAll('[data-del-lote]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('Excluir esta compra? O custo médio será recalculado (as vendas já feitas não mudam).')) return;
+    try { await api(`/lotes/${b.dataset.delLote}`, { method: 'DELETE' }); toast('Compra excluída.'); go('estoque'); }
+    catch (err) { toast(err.message, true); }
+  }));
+
+  root.querySelectorAll('[data-descartar]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('Descartar este frasco aberto? Ele não volta pro estoque.')) return;
+    try { await api(`/frascos-abertos/${b.dataset.descartar}`, { method: 'DELETE' }); toast('Frasco descartado.'); go('estoque'); }
+    catch (err) { toast(err.message, true); }
+  }));
+}
+
 /* --------- comparação / viabilidade --------- */
 function bottle(ml, max) {
   const h = 34 + (ml / max) * 46;
@@ -780,6 +980,7 @@ const RENDERERS = {
   perfume: renderPerfume,
   marcas: renderMarcas,
   insumos: renderInsumos,
+  estoque: renderEstoque,
   viabilidade: renderViabilidade,
 };
 
