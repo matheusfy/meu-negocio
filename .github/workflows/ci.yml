@@ -11,9 +11,90 @@ on:
 
 defaults:
   run:
-    working-directory: sistema-pedidos
+    working-directory: meu-negocio
 
 jobs:
+  commit-lint:
+    name: Commit Lint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Validar mensagens de commit (padrão [tipo]: descrição)"
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -e
+          git fetch origin "$BASE_REF" --depth=1
+          pattern='^\[(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\([a-z0-9._-]+\))?\]: .{1,100}$'
+          failed=0
+          for sha in $(git rev-list --no-merges "origin/$BASE_REF..HEAD"); do
+            msg=$(git log -1 --format=%s "$sha")
+            if ! echo "$msg" | grep -Eq "$pattern"; then
+              echo "::error::Commit $sha fora do padrão: \"$msg\""
+              failed=1
+            fi
+          done
+          if [ "$failed" -eq 1 ]; then
+            echo ""
+            echo "Padrão esperado: [tipo]: descrição   (ou [tipo(escopo)]: descrição)"
+            echo "Tipos válidos: feat, fix, docs, style, refactor, perf, test, chore, ci, build"
+            echo "Exemplo: [feat]: adiciona cancelamento de pedido"
+            exit 1
+          fi
+
+  branch-name-lint:
+    name: Branch Name Lint
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref != 'develop'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: "Validar nome da branch (padrão issue-N-DescricaoTarefa)"
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -e
+          # Exceção temporária: branches criadas antes do padrão entrar em vigor.
+          # Não crie branches novas aqui — use issue-N-DescricaoTarefa.
+          legacy_allowlist='^(issu2-test)$'
+          pattern='^issue-[0-9]+-[A-Za-z][A-Za-z0-9]*$'
+          if echo "$HEAD_REF" | grep -Eq "$legacy_allowlist"; then
+            echo "Branch \"$HEAD_REF\" na allowlist legada, ignorando."
+            exit 0
+          fi
+          if ! echo "$HEAD_REF" | grep -Eq "$pattern"; then
+            echo "::error::Branch \"$HEAD_REF\" fora do padrão."
+            echo "Padrão esperado: issue-N-DescricaoTarefa"
+            echo "Exemplo: issue-12-CadastroPedido"
+            exit 1
+          fi
+
+  guard-main-source:
+    name: Guard Merge To Main
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: "Bloquear merge na main que não venha da develop"
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "::error::PR para main deve vir de develop (branch atual: $HEAD_REF)."
+            exit 1
+          fi
+
   build-and-test:
     name: Build & Testes
     runs-on: ubuntu-latest
@@ -33,7 +114,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('sistema-pedidos/**/*.gradle*', 'sistema-pedidos/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('meu-negocio/**/*.gradle*', 'meu-negocio/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Permissão de execução no gradlew
@@ -47,7 +128,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: sistema-pedidos/build/reports/tests/test
+          path: meu-negocio/build/reports/tests/test
           retention-days: 7
 
   lint:
@@ -69,7 +150,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('sistema-pedidos/**/*.gradle*', 'sistema-pedidos/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('meu-negocio/**/*.gradle*', 'meu-negocio/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Permissão de execução no gradlew
@@ -83,5 +164,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: checkstyle-results
-          path: sistema-pedidos/build/reports/checkstyle
+          path: meu-negocio/build/reports/checkstyle
           retention-days: 7
