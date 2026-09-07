@@ -22,7 +22,7 @@ import meu.negocio.com.br.entity.Produto;
  */
 class EstoqueServiceTest {
 
-    private final EstoqueService service = new EstoqueService(null, null, null, null);
+    private final EstoqueService service = new EstoqueService(null, null, null, null, null);
 
     private static Produto produto(String precoCusto, String volumeMl, int estoqueMinimo) {
         Produto produto = new Produto();

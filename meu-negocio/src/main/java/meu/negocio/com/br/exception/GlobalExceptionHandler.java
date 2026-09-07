@@ -63,7 +63,8 @@ public class GlobalExceptionHandler {
         DecanteNaoEncontradoException.class,
         MarcaNaoEncontradaException.class,
         LoteCompraNaoEncontradoException.class,
-        FrascoAbertoNaoEncontradoException.class
+        FrascoAbertoNaoEncontradoException.class,
+        VendaNaoEncontradaException.class
     })
     public ResponseEntity<ErroResposta> handleRecursoNaoEncontrado(RuntimeException ex, HttpServletRequest request) {
         ErroResposta erro = new ErroResposta(
