@@ -69,19 +69,30 @@ e falha na inicialização se faltar `SPRING_DATASOURCE_URL`.
 
 ## Fase 2 — Login (bloqueador de publicação)
 
-Branch: `issue-N-login`.
+Branch: `issue-7-Login`. **Implementada e testada** (2026-09-28).
 
-1. `spring-boot-starter-security`.
-2. `InMemoryUserDetailsManager` com usuários lidos de env
-   (`APP_USERS_0_NAME`, `APP_USERS_0_PASSWORD_HASH`, ...) — hash BCrypt gerado localmente,
-   senha em texto nunca vai pro Railway nem pro git.
-3. Form login com página `login.html` no estilo do front; logout; remember-me (30 dias)
-   para não pedir senha toda hora no celular.
-4. Libera sem login: `/login*`, CSS/ícones da tela de login, `/actuator/health`. Todo o resto exige login.
-5. **CSRF**: manter ligado com `CookieCsrfTokenRepository` e enviar o header `X-XSRF-TOKEN`
-   no wrapper de `fetch` do `app.js` (POST/PUT/DELETE).
-6. API responde **401** (não redirect) quando a sessão expira; o `app.js` trata e manda para o login.
-7. Testes: `@WebMvcTest` com e sem usuário autenticado; em dev, perfil local pode manter usuário padrão.
+- `SecurityConfig` + `SegurancaProperties`: form login (`/login.html`), usuários fixos lidos de
+  `app.seguranca.usuarios[n]` com senha em **hash BCrypt**. Hash inválido (ex.: senha em texto)
+  impede o app de subir.
+- Sessão de **30 dias** guardada no banco (spring-session-jdbc): sobrevive a restart/deploy,
+  então não precisou de remember-me.
+- Públicos: `/login.html`, `/styles.css`, `/actuator/health`. API sem login → **401**
+  (o `app.js` volta para o login); páginas → redirect para `/login.html`.
+- **CSRF** ligado: token no cookie `XSRF-TOKEN`, enviado no header `X-XSRF-TOKEN` pelo `app.js`
+  e no campo `_csrf` pelo formulário de login/logout.
+- Barra lateral mostra quem está logado (`GET /api/v1/sessao`) e tem botão **Sair**.
+- `criado_por`/`atualizado_por` passam a gravar o `id` do usuário logado.
+- Dev: sem usuários configurados, o log mostra um login temporário `admin` com senha aleatória.
+  No perfil `prod` isso é desligado — sem usuários o app não sobe.
+- Testado em container com perfil prod: redirect, 401, senha errada, login sem CSRF (403),
+  POST com/sem CSRF, sessão após `docker restart`, logout.
+
+**Gerar o hash de uma senha** (a senha em texto não sai do seu PC; com Docker Desktop aberto):
+```
+docker run --rm httpd:alpine htpasswd -nbBC 10 "" 'SUA_SENHA' | tr -d ':
+'
+```
+O resultado começa com `$2y$10$...` e é o valor de `APP_SEGURANCA_USUARIOS_n_SENHAHASH`.
 
 ## Fase 3 — Supabase
 
@@ -105,8 +116,12 @@ Branch: `issue-N-login`.
    SPRING_DATASOURCE_URL=jdbc:postgresql://...pooler.supabase.com:5432/postgres?sslmode=require
    SPRING_DATASOURCE_USERNAME=postgres.<ref>
    SPRING_DATASOURCE_PASSWORD=<senha>
-   APP_USERS_0_NAME=... / APP_USERS_0_PASSWORD_HASH=...
-   APP_USERS_1_NAME=... / APP_USERS_1_PASSWORD_HASH=...
+   APP_SEGURANCA_USUARIOS_0_ID=1
+   APP_SEGURANCA_USUARIOS_0_LOGIN=<seu login>
+   APP_SEGURANCA_USUARIOS_0_SENHAHASH=$2y$10$...
+   APP_SEGURANCA_USUARIOS_1_ID=2
+   APP_SEGURANCA_USUARIOS_1_LOGIN=<login da mãe>
+   APP_SEGURANCA_USUARIOS_1_SENHAHASH=$2y$10$...
    TZ=America/Sao_Paulo
    ```
 3. Healthcheck e restart já estão em `meu-negocio/railway.json`. O Railway **não** procura esse
