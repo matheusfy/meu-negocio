@@ -40,7 +40,9 @@ Celular / PC ──HTTPS──▶ Railway (container Docker: java -jar meu-negoc
 
 ## Fase 1 — App pronto para nuvem
 
-Branch: `issue-7-DeployPreparo`. **Implementada**; falta testar a imagem com Docker Desktop aberto.
+Branch: `issue-7-DeployPreparo`. **Implementada e testada** (2026-09-28): imagem de 566 MB, sobe em ~4 s usando ~360 MB de RAM,
+Flyway aplica as migrations num Postgres vazio, `/actuator/health` = UP, roda como usuário não-root
+e falha na inicialização se faltar `SPRING_DATASOURCE_URL`.
 
 1. **Fixar versão estável do Spring Boot** (decisão 7). Rodar os testes.
 2. **Porta dinâmica**: `server.port=${PORT:8080}` (Railway injeta `PORT`).
