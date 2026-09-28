@@ -84,11 +84,27 @@ function toast(msg, isError = false) {
 }
 
 /* ---------- API ---------- */
+/* Token CSRF que o Spring Security deixa no cookie XSRF-TOKEN; vai no header das escritas. */
+const csrfToken = () => {
+  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+};
+
 async function api(path, opts = {}) {
   const res = await fetch('/api/v1' + path, {
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-XSRF-TOKEN': csrfToken(),
+      ...opts.headers,
+    },
   });
+  if (res.status === 401) {
+    // Sessão expirou (ou nunca existiu): volta para o login.
+    window.location.href = '/login.html';
+    throw new Error('Sessão expirada. Entre de novo.');
+  }
   if (res.status === 204) return null;
   let body = null;
   try { body = await res.json(); } catch (_) { /* corpo vazio ou não-JSON */ }
@@ -1122,6 +1138,19 @@ const RENDERERS = {
 document.querySelectorAll('#nav button').forEach((b) => {
   b.innerHTML = svg(b.dataset.go) + `<span>${b.textContent.trim()}</span>`;
   b.addEventListener('click', () => go(b.dataset.go));
+});
+
+/* Quem está logado + sair (POST /logout com o token CSRF, como o Spring Security exige). */
+api('/sessao')
+  .then((s) => { document.getElementById('conta-nome').textContent = s.login; })
+  .catch(() => { /* 401 já redireciona para o login */ });
+document.getElementById('sair').addEventListener('click', () => {
+  const f = document.createElement('form');
+  f.method = 'post';
+  f.action = '/logout';
+  f.innerHTML = `<input type="hidden" name="_csrf" value="${esc(csrfToken())}">`;
+  document.body.appendChild(f);
+  f.submit();
 });
 
 go('inicio');
