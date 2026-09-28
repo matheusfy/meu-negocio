@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Valida o nome da branch atual no padrao: issue-N-DescricaoTarefa
+# develop e main sao isentas (sao as branches de integracao/producao).
+set -e
+
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+if [ -z "$branch" ] || [ "$branch" = "develop" ] || [ "$branch" = "main" ]; then
+  exit 0
+fi
+
+# Exceção temporária: branches criadas antes do padrão entrar em vigor.
+# Não crie branches novas aqui — use issue-N-DescricaoTarefa.
+if echo "$branch" | grep -Eq '^(issu2-test)$'; then
+  exit 0
+fi
+
+pattern='^issue-[0-9]+-[A-Za-z][A-Za-z0-9]*$'
+
+if ! echo "$branch" | grep -Eq "$pattern"; then
+  echo ""
+  echo "Push rejeitado: o nome da branch nao segue o padrao do time."
+  echo "  Recebido:  $branch"
+  echo "  Esperado:  issue-N-DescricaoTarefa"
+  echo "  Exemplo:   issue-12-CadastroPedido"
+  echo ""
+  exit 1
+fi

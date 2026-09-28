@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Valida a mensagem de commit no padrao Conventional Commits com tag entre colchetes:
+#   [tipo]: descricao
+#   [tipo(escopo)]: descricao
+set -e
+
+commit_msg_file="$1"
+commit_msg=$(head -n1 "$commit_msg_file")
+
+# ignora commits de merge
+if echo "$commit_msg" | grep -Eq "^Merge "; then
+  exit 0
+fi
+
+pattern='^\[(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\([a-z0-9._-]+\))?\]: .{1,100}$'
+
+if ! echo "$commit_msg" | grep -Eq "$pattern"; then
+  echo ""
+  echo "Commit rejeitado: a mensagem nao segue o padrao do time."
+  echo "  Recebido:  $commit_msg"
+  echo "  Esperado:  [tipo]: descricao   (ou [tipo(escopo)]: descricao)"
+  echo "  Tipos validos: feat, fix, docs, style, refactor, perf, test, chore, ci, build"
+  echo "  Exemplo:   [feat]: adiciona cancelamento de pedido"
+  echo "             [feat(pedido)]: adiciona cancelamento de pedido"
+  echo ""
+  exit 1
+fi

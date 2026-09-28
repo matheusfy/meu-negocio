@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(java -version)",
+      "Bash(wsl -e bash -c 'echo \"distro shell: $SHELL\"; echo \"---bashrc---\"; grep -n \"PS1\" ~/.bashrc 2>/dev/null; echo \"---zshrc exists?---\"; ls -la ~/.zshrc 2>&1; echo \"---which shell running as login---\"; cat /etc/passwd | grep \"$\\(whoami\\)\"')",
+      "Bash(wsl -e bash -c 'find / -iname \"git-prompt.sh\" 2>/dev/null; echo \"---\"; grep -n \"git-prompt\\\\|__git_ps1\\\\|GIT_PS1\" ~/.bashrc')"
+    ]
+  }
+}

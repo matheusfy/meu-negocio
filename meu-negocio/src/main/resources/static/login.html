@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#AF5828">
+  <title>Entrar · Ateliê de Decantes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="login">
+    <div class="card login-card">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div><b>Ateliê</b><span>de Decantes</span></div>
+      </div>
+      <h1>Entrar</h1>
+      <p class="login-msg err" id="msg-erro" role="alert" hidden>Usuário ou senha incorretos.</p>
+      <p class="login-msg" id="msg-saiu" role="status" hidden>Você saiu. Até a próxima!</p>
+      <form method="post" action="/login" id="form-login">
+        <div class="field">
+          <label for="username">Usuário</label>
+          <input id="username" name="username" autocomplete="username" autocapitalize="none" required autofocus>
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <input type="hidden" name="_csrf" id="csrf">
+        <button class="btn" type="submit">Entrar</button>
+      </form>
+    </div>
+  </main>
+  <script>
+    // O Spring Security deixa o token CSRF no cookie XSRF-TOKEN; o formulário precisa enviá-lo.
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    document.getElementById('csrf').value = m ? decodeURIComponent(m[1]) : '';
+    const q = new URLSearchParams(location.search);
+    document.getElementById('msg-erro').hidden = !q.has('erro');
+    document.getElementById('msg-saiu').hidden = !q.has('saiu');
+  </script>
+</body>
+</html>
