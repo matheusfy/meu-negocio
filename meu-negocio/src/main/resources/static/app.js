@@ -1135,9 +1135,27 @@ const RENDERERS = {
   viabilidade: renderViabilidade,
 };
 
+const navEl = document.getElementById('nav');
+const navToggle = document.getElementById('navToggle');
+const closeNav = () => {
+  navEl.classList.remove('open');
+  if (navToggle) navToggle.setAttribute('aria-expanded', 'false');
+};
+if (navToggle) {
+  navToggle.addEventListener('click', () => {
+    const open = navEl.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', String(open));
+  });
+}
+document.addEventListener('click', (ev) => {
+  if (!navEl.classList.contains('open')) return;
+  if (navEl.contains(ev.target) || (navToggle && navToggle.contains(ev.target))) return;
+  closeNav();
+});
+
 document.querySelectorAll('#nav button').forEach((b) => {
   b.innerHTML = svg(b.dataset.go) + `<span>${b.textContent.trim()}</span>`;
-  b.addEventListener('click', () => go(b.dataset.go));
+  b.addEventListener('click', () => { go(b.dataset.go); closeNav(); });
 });
 
 /* Quem está logado + sair (POST /logout com o token CSRF, como o Spring Security exige). */
